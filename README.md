@@ -5,7 +5,6 @@
 ![vibes](https://img.shields.io/badge/vibes-immaculate-blueviolet)
 ![powered by](https://img.shields.io/badge/powered%20by-Ollama-orange)
 ![status](https://img.shields.io/badge/status-lit%20AF-brightgreen)
-![models](https://img.shields.io/badge/models-100%%20local-blue)
 
 ## 👀 What's This?
 
@@ -31,16 +30,13 @@ No cap. Your AI assistant can now interact with real tools and APIs without hall
 
 ```bash
 # Clone this bad boy
-git clone https://github.com/yourusername/functioncalling.git
-
-# Jump in
-cd functioncalling
+git clone git@github.com:trebaud/LocalAssistant.git
 
 # Install the goods
 bun install
 
 # Let's gooooo (uses your local Ollama models)
-bun start "What's the weather in Paris?"
+bun start "What's the weather in Montreal?"
 ```
 
 ## 🛠️ The Cool Stuff You Can Do
@@ -98,6 +94,6 @@ Built with ❤️, Ollama, and coffee.
 
 ---
 
-> **Disclaimer:** NeuroBridge was 100% vibe coded. 🤖
+> **Disclaimer:** LocalAssistant was 100% vibe coded. 🤖
 
 MIT Licensed • Contributions Welcome

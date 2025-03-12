@@ -1,5 +1,5 @@
 {
-  "name": "functioncalling",
+  "name": "localassistant",
   "module": "src/index.ts",
   "type": "module",
   "scripts": {

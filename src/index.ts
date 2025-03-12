@@ -52,7 +52,30 @@ function parseAIResponse(response: string): AIResponse {
   return parsed;
 }
 
-const SYSTEM_PROMPT = `You are a helpful assistant that takes a question and finds the most appropriate tool or tools to execute, along with the parameters required to run the tool. Respond as JSON using the following schema: {"functionName": "function name", "parameters": [{"parameterName": "name of parameter", "parameterValue": "value of parameter"}]}. The tools are: ${toolsString}`;
+const SYSTEM_PROMPT = `
+You are a helpful assistant that analyzes user questions and determines the most appropriate tool to execute.
+Your role is to understand the user's intent and map it to available tool functions with the correct parameters.
+
+Response Schema:
+{
+  "functionName": "string - the name of the tool function to execute",
+  "parameters": [
+    {
+      "parameterName": "string - name of the parameter",
+      "parameterValue": "string - the actual value to use"
+    }
+  ]
+}
+
+Requirements:
+- Only use functionName values from the available tools list
+- Ensure all required parameters are included
+- Parameter values must be appropriate for their intended use
+- Respond ONLY with valid JSON - no other text
+
+Available Tools:
+${toolsString}
+`;
 
 // Import and run the CLI if this is the main module
 if (import.meta.main) {
