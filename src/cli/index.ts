@@ -9,6 +9,7 @@ interface CliOptions {
   listTools?: boolean;
   prompt?: string;
   mock?: boolean;
+  chat?: boolean;
 }
 
 /**
@@ -30,6 +31,8 @@ export function parseArgs(args: string[]): CliOptions {
       options.listTools = true;
     } else if (arg === '--mock') {
       options.mock = true;
+    } else if (arg === '--chat' || arg === '-c') {
+      options.chat = true;
     } else if (!arg.startsWith('-')) {
       // If we already have a prompt, append this arg to it
       if (options.prompt) {
@@ -59,6 +62,7 @@ Options:
   -m, --model       Specify the AI model to use (default: ${CONFIG.AI.MODEL})
   -v, --verbose     Enable verbose output
   -l, --list-tools  List available tools
+  -c, --chat        Force chat mode even if a prompt is provided
   --mock            Use mock responses instead of calling the AI model
 
 Default Mode:
@@ -117,12 +121,19 @@ export async function runCli(args: string[] = process.argv.slice(2)): Promise<vo
     console.log('Using model:', CONFIG.AI.MODEL);
   }
   
-  if (!options.prompt) {
-    // Start interactive chat session as the default mode
-    await startChatSession();
+  // Start chat mode if explicitly requested or if no prompt is provided
+  if (options.chat || !options.prompt) {
+    if (options.verbose) {
+      console.log('Starting chat mode');
+    }
+    await startChatSession({
+      mock: options.mock,
+      model: options.model
+    });
     return;
   }
   
+  // Process the prompt with the appropriate mode
   if (options.mock) {
     console.log('Using mock mode');
     // This will be implemented in the mock module
