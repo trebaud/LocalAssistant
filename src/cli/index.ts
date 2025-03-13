@@ -1,4 +1,4 @@
-import { processPrompt } from '../index';
+import { processPrompt, startChatSession } from '../index';
 import { TOOLS } from '../tools/definitions';
 import { CONFIG } from '../config';
 
@@ -49,7 +49,7 @@ export function parseArgs(args: string[]): CliOptions {
  */
 export function displayHelp(): void {
   console.log(`
-Function Calling CLI
+LocalAssistant CLI
 
 Usage:
   bun run index.ts [options] [prompt]
@@ -61,7 +61,11 @@ Options:
   -l, --list-tools  List available tools
   --mock            Use mock responses instead of calling the AI model
 
+Default Mode:
+  Running without a prompt starts an interactive chat session.
+
 Examples:
+  bun run index.ts                           # Start interactive chat session
   bun run index.ts "What is the weather in London?"
   bun run index.ts --model llama3.2 "Who is the CEO of Tesla?"
   bun run index.ts --verbose "What is located at 41.881832, -87.640406?"
@@ -114,7 +118,8 @@ export async function runCli(args: string[] = process.argv.slice(2)): Promise<vo
   }
   
   if (!options.prompt) {
-    console.log('No prompt provided. Use --help for usage information.');
+    // Start interactive chat session as the default mode
+    await startChatSession();
     return;
   }
   
