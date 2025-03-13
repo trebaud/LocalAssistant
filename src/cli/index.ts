@@ -67,6 +67,14 @@ Options:
 
 Default Mode:
   Running without a prompt starts an interactive chat session.
+  Tool use is automatically detected from your messages!
+
+Chat Commands:
+  /help             Show help message
+  /clear            Clear chat history
+  /model [name]     Show or change the current model
+  /tool             Explicitly trigger a tool (e.g., /tool WeatherFromLocation location="New York")
+  exit, quit        End the session
 
 Examples:
   bun run index.ts                           # Start interactive chat session

@@ -1,7 +1,8 @@
 import ollama from 'ollama';
 import { CONFIG } from './config';
-import { toolsString, executeFunction } from './tools';
+import { toolsString, executeFunction, TOOLS } from './tools';
 import { ToolError } from './types';
+import type { Tool, FunctionParameter } from './types';
 import readline from 'readline';
 
 interface AIResponse {
@@ -13,6 +14,36 @@ interface AIResponse {
 }
 
 /**
+ * Detect if a prompt is likely to be a tool request
+ */
+export function isToolRequest(prompt: string): boolean {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  // Check for keywords related to available tools
+  const weatherKeywords = ['weather', 'temperature', 'forecast', 'humidity', 'rain', 'snow'];
+  const locationKeywords = ['coordinates', 'latitude', 'longitude', 'located at', 'where is'];
+  const searchKeywords = ['search for', 'find information', 'look up'];
+  
+  // Check for patterns like coordinates
+  const hasCoordinates = lowerPrompt.match(/\b\d+\.\d+\b/) !== null;
+  
+  // Check if the prompt contains tool-related keywords
+  const hasWeatherKeywords = weatherKeywords.some(keyword => lowerPrompt.includes(keyword));
+  const hasLocationKeywords = locationKeywords.some(keyword => lowerPrompt.includes(keyword));
+  const hasSearchKeywords = searchKeywords.some(keyword => lowerPrompt.includes(keyword));
+  
+  // Check if the prompt is a question
+  const isQuestion = lowerPrompt.includes('?') || 
+                     lowerPrompt.startsWith('what') || 
+                     lowerPrompt.startsWith('where') || 
+                     lowerPrompt.startsWith('who') || 
+                     lowerPrompt.startsWith('how');
+  
+  // If the prompt contains tool-related keywords and is a question, it's likely a tool request
+  return (hasWeatherKeywords || hasLocationKeywords || hasSearchKeywords || hasCoordinates) && isQuestion;
+}
+
+/**
  * Process a user prompt through the AI model and execute the appropriate tool
  */
 export async function processPrompt(prompt: string, streamOutput: boolean = false): Promise<void> {
@@ -20,6 +51,16 @@ export async function processPrompt(prompt: string, streamOutput: boolean = fals
     console.log('\nProcessing prompt:', prompt);
     
     if (streamOutput) {
+      // Check if this is likely a tool request
+      const shouldUseTool = isToolRequest(prompt);
+      
+      if (shouldUseTool) {
+        console.log('Detected tool request, processing with tool execution...');
+        // Process as a tool request (non-streaming)
+        await processPrompt(prompt, false);
+        return;
+      }
+      
       // For streaming mode, we'll use a different system prompt and handle the response differently
       const stream = await ollama.chat({
         model: CONFIG.AI.MODEL,
@@ -79,32 +120,38 @@ export async function startChatSession(options: {
   console.log('Type your messages and press Enter to chat.');
   console.log('Type "/help" to see available commands.');
   console.log('Type "exit", "quit", or press Ctrl+C to end the session.\n');
+  console.log('Tool use is now automatically detected from your messages!\n');
   
   // Keep track of chat history
   const history: Array<{ role: 'user' | 'assistant', content: string }> = [];
   
   const processCommand = async (command: string): Promise<boolean> => {
-    const cmd = command.toLowerCase().trim();
+    const cmd = command.trim();
+    const lowerCmd = cmd.toLowerCase();
     
     // Handle special commands
-    if (cmd === 'exit' || cmd === 'quit') {
+    if (lowerCmd === 'exit' || lowerCmd === 'quit') {
       console.log('Goodbye! 👋');
       rl.close();
       return true;
-    } else if (cmd === '/help') {
+    } else if (lowerCmd === '/help') {
       console.log('\nAvailable Commands:');
       console.log('  /help     - Show this help message');
       console.log('  /clear    - Clear the chat history');
-      console.log('  /tool     - Switch to tool execution mode for the next message');
       console.log('  /model    - Show or change the current model');
+      console.log('  /tool     - Explicitly trigger a tool (e.g., /tool WeatherFromLocation location="New York")');
       console.log('  exit, quit - End the session\n');
+      console.log('Note: Tool use is automatically detected from your messages!\n');
       return true;
-    } else if (cmd === '/clear') {
+    } else if (lowerCmd === '/clear') {
       console.clear();
       history.length = 0;
       console.log('Chat history cleared.');
       return true;
-    } else if (cmd.startsWith('/model')) {
+    } else if (cmd.startsWith('/tool')) {
+      await handleToolCommand(cmd);
+      return true;
+    } else if (lowerCmd.startsWith('/model')) {
       const parts = cmd.split(' ');
       if (parts.length > 1) {
         const newModel = parts.slice(1).join(' ');
@@ -113,19 +160,6 @@ export async function startChatSession(options: {
       } else {
         console.log(`Current model: ${CONFIG.AI.MODEL}`);
       }
-      return true;
-    } else if (cmd === '/tool') {
-      console.log('Enter your query for tool execution:');
-      rl.question('Query: ', async (toolQuery) => {
-        console.log('\nProcessing with tool execution...');
-        if (options.mock) {
-          const { runMockPrompt } = await import('./mock/index.js');
-          await runMockPrompt(toolQuery);
-        } else {
-          await processPrompt(toolQuery, false);
-        }
-        askQuestion();
-      });
       return true;
     }
     
@@ -153,7 +187,14 @@ export async function startChatSession(options: {
       process.stdout.write('Assistant: ');
       
       if (options.mock) {
-        console.log('\n[Mock Response] This is a simulated response in chat mode.');
+        // Check if this is likely a tool request
+        if (isToolRequest(input)) {
+          console.log('\nDetected tool request, processing with mock tool execution...');
+          const { runMockPrompt } = await import('./mock/index.js');
+          await runMockPrompt(input);
+        } else {
+          console.log('\n[Mock Response] This is a simulated response in chat mode.');
+        }
         history.push({ role: 'assistant', content: '[Mock Response]' });
       } else {
         try {
@@ -216,6 +257,72 @@ Respond directly to the user's questions and requests in a conversational manner
 Be concise but thorough in your responses.
 If you don't know something, admit it rather than making up information.
 `;
+
+/**
+ * Handle the /tool command
+ * Format: /tool ToolName param1="value1" param2="value2"
+ */
+async function handleToolCommand(command: string): Promise<void> {
+  try {
+    // Extract the command parts (skip the "/tool" part)
+    const parts = command.substring(5).trim().split(/\s+/);
+    
+    if (parts.length === 0 || !parts[0]) {
+      console.log('Error: Tool name is required. Usage: /tool ToolName param1="value1" param2="value2"');
+      console.log('Available tools:');
+      Object.values(TOOLS).forEach(tool => {
+        console.log(`- ${tool.name}: ${tool.description}`);
+        tool.parameters.forEach(param => {
+          console.log(`  * ${param.name}${param.required ? ' (required)' : ''}: ${param.description}`);
+        });
+      });
+      return;
+    }
+    
+    const toolName = parts[0];
+    const tool = Object.values(TOOLS).find(t => t.name === toolName);
+    
+    if (!tool) {
+      console.log(`Error: Unknown tool "${toolName}". Use /help to see available tools.`);
+      return;
+    }
+    
+    // Parse parameters
+    const parameters: Array<{ parameterName: string; parameterValue: string }> = [];
+    const paramRegex = /([a-zA-Z0-9_]+)=(?:"([^"]*)"|([\S]+))/g;
+    
+    // Join the rest of the command to handle parameters with spaces
+    const paramString = parts.slice(1).join(' ');
+    let match;
+    
+    while ((match = paramRegex.exec(paramString)) !== null) {
+      const paramName = match[1];
+      // Use the quoted value if available, otherwise use the non-quoted value
+      const paramValue = match[2] !== undefined ? match[2] : match[3];
+      parameters.push({ parameterName: paramName, parameterValue: paramValue });
+    }
+    
+    // Check for required parameters
+    const missingParams = tool.parameters
+      .filter(param => param.required)
+      .filter(param => !parameters.some(p => p.parameterName === param.name));
+    
+    if (missingParams.length > 0) {
+      console.log(`Error: Missing required parameters: ${missingParams.map(p => p.name).join(', ')}`);
+      return;
+    }
+    
+    // Execute the tool
+    console.log(`Executing tool: ${toolName}`);
+    await executeFunction(toolName, parameters);
+  } catch (error) {
+    if (error instanceof ToolError) {
+      console.error(`Tool Error (${error.code}):`, error.message);
+    } else {
+      console.error('Error executing tool:', error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+}
 
 // Import and run the CLI if this is the main module
 if (import.meta.main) {
