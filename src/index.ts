@@ -2,7 +2,6 @@ import ollama from 'ollama';
 import { CONFIG } from './config';
 import { toolsString, executeFunction, TOOLS } from './tools';
 import { ToolError } from './types';
-import type { Tool, FunctionParameter } from './types';
 import readline from 'readline';
 
 interface AIResponse {
@@ -14,33 +13,40 @@ interface AIResponse {
 }
 
 /**
- * Detect if a prompt is likely to be a tool request
+ * Extract and parse JSON from a text that might contain both regular text and JSON
+ * @returns AIResponse if JSON is found and valid, null otherwise
  */
-export function isToolRequest(prompt: string): boolean {
-  const lowerPrompt = prompt.toLowerCase();
+function extractAndParseJSON(text: string): AIResponse | null {
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    
+    const jsonStr = jsonMatch[0];
+    return parseAIResponse(jsonStr);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Handle streaming response from the AI model
+ */
+async function handleStreamingResponse(stream: AsyncIterable<any>): Promise<string> {
+  let fullResponse = '';
+  process.stdout.write('\n');
   
-  // Check for keywords related to available tools
-  const weatherKeywords = ['weather', 'temperature', 'forecast', 'humidity', 'rain', 'snow'];
-  const locationKeywords = ['coordinates', 'latitude', 'longitude', 'located at', 'where is'];
-  const searchKeywords = ['search for', 'find information', 'look up'];
+  for await (const chunk of stream) {
+    if (chunk.message?.content) {
+      process.stdout.write(chunk.message.content);
+      fullResponse += chunk.message.content;
+    }
+  }
   
-  // Check for patterns like coordinates
-  const hasCoordinates = lowerPrompt.match(/\b\d+\.\d+\b/) !== null;
-  
-  // Check if the prompt contains tool-related keywords
-  const hasWeatherKeywords = weatherKeywords.some(keyword => lowerPrompt.includes(keyword));
-  const hasLocationKeywords = locationKeywords.some(keyword => lowerPrompt.includes(keyword));
-  const hasSearchKeywords = searchKeywords.some(keyword => lowerPrompt.includes(keyword));
-  
-  // Check if the prompt is a question
-  const isQuestion = lowerPrompt.includes('?') || 
-                     lowerPrompt.startsWith('what') || 
-                     lowerPrompt.startsWith('where') || 
-                     lowerPrompt.startsWith('who') || 
-                     lowerPrompt.startsWith('how');
-  
-  // If the prompt contains tool-related keywords and is a question, it's likely a tool request
-  return (hasWeatherKeywords || hasLocationKeywords || hasSearchKeywords || hasCoordinates) && isQuestion;
+  process.stdout.write('\n\n');
+  return fullResponse;
 }
 
 /**
@@ -48,20 +54,7 @@ export function isToolRequest(prompt: string): boolean {
  */
 export async function processPrompt(prompt: string, streamOutput: boolean = false): Promise<void> {
   try {
-    console.log('\nProcessing prompt:', prompt);
-    
     if (streamOutput) {
-      // Check if this is likely a tool request
-      const shouldUseTool = isToolRequest(prompt);
-      
-      if (shouldUseTool) {
-        console.log('Detected tool request, processing with tool execution...');
-        // Process as a tool request (non-streaming)
-        await processPrompt(prompt, false);
-        return;
-      }
-      
-      // For streaming mode, we'll use a different system prompt and handle the response differently
       const stream = await ollama.chat({
         model: CONFIG.AI.MODEL,
         messages: [
@@ -71,13 +64,13 @@ export async function processPrompt(prompt: string, streamOutput: boolean = fals
         stream: true,
       });
       
-      process.stdout.write('\n');
-      for await (const chunk of stream) {
-        if (chunk.message?.content) {
-          process.stdout.write(chunk.message.content);
-        }
+      const fullResponse = await handleStreamingResponse(stream);
+      const parsedResponse = extractAndParseJSON(fullResponse);
+      
+      if (parsedResponse) {
+        await executeFunction(parsedResponse.functionName, parsedResponse.parameters);
       }
-      process.stdout.write('\n\n');
+      
       return;
     }
     
@@ -187,14 +180,7 @@ export async function startChatSession(options: {
       process.stdout.write('Assistant: ');
       
       if (options.mock) {
-        // Check if this is likely a tool request
-        if (isToolRequest(input)) {
-          console.log('\nDetected tool request, processing with mock tool execution...');
-          const { runMockPrompt } = await import('./mock/index.js');
-          await runMockPrompt(input);
-        } else {
           console.log('\n[Mock Response] This is a simulated response in chat mode.');
-        }
         history.push({ role: 'assistant', content: '[Mock Response]' });
       } else {
         try {
@@ -252,10 +238,46 @@ ${toolsString}
 `;
 
 const CHAT_SYSTEM_PROMPT = `
-You are a helpful, friendly, and knowledgeable assistant. 
-Respond directly to the user's questions and requests in a conversational manner.
-Be concise but thorough in your responses.
-If you don't know something, admit it rather than making up information.
+You are a helpful and friendly AI assistant. You can engage in natural conversation and have access to various tools to help users.
+
+Important: When you detect that a user's request requires using a tool, respond with:
+1. A brief acknowledgment of their intent (e.g. "I'll check the weather for you")
+2. IMMEDIATELY followed by the appropriate JSON format
+
+Example response for "what's the weather in London?":
+"I'll check London's weather for you"
+{
+  "functionName": "getWeather",
+  "parameters": [
+    {
+      "parameterName": "location",
+      "parameterValue": "London"
+    }
+  ]
+}
+
+For tool requests, use this JSON format:
+{
+  "functionName": "string - the name of the tool function to execute",
+  "parameters": [
+    {
+      "parameterName": "string - name of the parameter", 
+      "parameterValue": "string - the actual value to use"
+    }
+  ]
+}
+
+For regular conversation:
+- Be friendly, helpful, and direct
+- Answer questions using your knowledge
+- Keep responses concise and relevant
+- Don't pretend to have personal experiences or emotions
+- If you're unsure if a tool is needed, respond conversationally
+
+Available Tools:
+${toolsString}
+
+Remember: Detect tool intent immediately and output JSON without discussion. For regular chat, be natural and helpful.
 `;
 
 /**
