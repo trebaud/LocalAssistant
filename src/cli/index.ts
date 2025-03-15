@@ -1,5 +1,5 @@
 import { processPrompt, startChatSession } from '../index';
-import { TOOLS } from '../tools/definitions';
+import { TOOLS } from '../tools';
 import { CONFIG } from '../config';
 
 interface CliOptions {
