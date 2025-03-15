@@ -36,16 +36,20 @@ function extractAndParseJSON(text: string): AIResponse | null {
  */
 async function handleStreamingResponse(stream: AsyncIterable<any>): Promise<string> {
   let fullResponse = '';
-  process.stdout.write('\n');
+  
+  // Add a newline and a subtle separator before the response
+  console.log('\n' + '─'.repeat(process.stdout.columns || 80));
   
   for await (const chunk of stream) {
     if (chunk.message?.content) {
-      process.stdout.write(chunk.message.content);
+      // Use cyan color for the assistant's response
+      process.stdout.write('\x1b[36m' + chunk.message.content + '\x1b[0m');
       fullResponse += chunk.message.content;
     }
   }
   
-  process.stdout.write('\n\n');
+  // Add a separator after the response
+  console.log('\n' + '─'.repeat(process.stdout.columns || 80) + '\n');
   return fullResponse;
 }
 

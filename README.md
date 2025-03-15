@@ -2,9 +2,7 @@
 
 > **Supercharge your apps with local AI brain power** ✨
 
-![vibes](https://img.shields.io/badge/vibes-immaculate-blueviolet)
 ![powered by](https://img.shields.io/badge/powered%20by-Ollama-orange)
-![status](https://img.shields.io/badge/status-lit%20AF-brightgreen)
 
 ## 👀 What's This?
 
@@ -39,25 +37,6 @@ bun install
 bun start "What's the weather in Montreal?"
 ```
 
-## 🛠️ The Cool Stuff You Can Do
-
-```bash
-# Basic usage - ask anything
-bun start "Find coffee shops near me"
-
-# Development mode with hot reload
-bun dev
-
-# See all the tools at your disposal
-bun list-tools
-
-# Mock mode for testing (no API calls)
-bun start --mock "What's the weather in Tokyo?"
-
-# Flex with verbose mode
-bun start --verbose "Convert 100 USD to EUR"
-```
-
 ## 🧩 Make It Your Own
 
 Want to add your own tools? It's stupid simple:
@@ -86,11 +65,7 @@ We're just scratching the surface of what's possible when you give AI the abilit
 - Research assistants that cite real, verified sources
 - Smart home controllers that actually work with your devices
 
-## 💬 Last Words
-
 Built with ❤️, Ollama, and coffee.
-
-*"It's basically giving your AI a Swiss Army knife instead of just asking it to describe one."*
 
 ---
 
