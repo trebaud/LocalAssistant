@@ -56,15 +56,22 @@ async function handleStreamingResponse(stream: AsyncIterable<any>): Promise<stri
 /**
  * Process a user prompt through the AI model and execute the appropriate tool
  */
-export async function processPrompt(prompt: string, streamOutput: boolean = false): Promise<void> {
+export async function processPrompt(
+  prompt: string, 
+  streamOutput: boolean = false,
+  history: Array<{ role: 'system' | 'user' | 'assistant', content: string }> = []
+): Promise<string | null> {
   try {
     if (streamOutput) {
+      // For streaming mode (chat), use the full conversation history
+      const messages = [
+        ...(history.length > 0 ? history : [{ role: 'system', content: CHAT_SYSTEM_PROMPT }]),
+        { role: 'user', content: prompt }
+      ];
+
       const stream = await ollama.chat({
         model: CONFIG.AI.MODEL,
-        messages: [
-          { role: 'system', content: CHAT_SYSTEM_PROMPT },
-          { role: 'user', content: prompt }
-        ],
+        messages,
         stream: true,
       });
       
@@ -80,24 +87,27 @@ export async function processPrompt(prompt: string, streamOutput: boolean = fals
         }
       }
       
-      return;
-    }
-    
-    // Non-streaming mode for tool execution
-    const response = await ollama.generate({
-      model: CONFIG.AI.MODEL,
-      system: SYSTEM_PROMPT,
-      prompt,
-      stream: false,
-      format: 'json',
-    });
-
-    const parsedResponse = parseAIResponse(response.response.trim());
-    const result = await executeFunction(parsedResponse.functionName, parsedResponse.parameters);
-    if (typeof result === 'string') {
-      console.log(result);
+      return fullResponse;
     } else {
-      console.log(JSON.stringify(result, null, 2));
+      // Non-streaming mode for tool execution - don't use persisted history
+      // Use generate API with system prompt for direct tool execution
+      const response = await ollama.generate({
+        model: CONFIG.AI.MODEL,
+        system: SYSTEM_PROMPT,
+        prompt,
+        stream: false,
+        format: 'json',
+      });
+
+      const parsedResponse = parseAIResponse(response.response.trim());
+      const result = await executeFunction(parsedResponse.functionName, parsedResponse.parameters);
+      if (typeof result === 'string') {
+        console.log(result);
+      } else {
+        console.log(JSON.stringify(result, null, 2));
+      }
+      
+      return response.response;
     }
   } catch (error) {
     if (error instanceof ToolError) {
@@ -107,6 +117,7 @@ export async function processPrompt(prompt: string, streamOutput: boolean = fals
     } else {
       console.error('Unexpected error:', error instanceof Error ? error.message : 'Unknown error');
     }
+    return null;
   }
 }
 
@@ -129,7 +140,9 @@ export async function startChatSession(options: {
   console.log('Tool use is now automatically detected from your messages!\n');
   
   // Keep track of chat history
-  const history: Array<{ role: 'user' | 'assistant', content: string }> = [];
+  const history: Array<{ role: 'system' | 'user' | 'assistant', content: string }> = [
+    { role: 'system', content: CHAT_SYSTEM_PROMPT }
+  ];
   
   const processCommand = async (command: string): Promise<boolean> => {
     const cmd = command.trim();
@@ -151,11 +164,13 @@ export async function startChatSession(options: {
       return true;
     } else if (lowerCmd === '/clear') {
       console.clear();
+      // Reset history but keep the system prompt
       history.length = 0;
+      history.push({ role: 'system', content: CHAT_SYSTEM_PROMPT });
       console.log('Chat history cleared.');
       return true;
     } else if (cmd.startsWith('/tool')) {
-      await handleToolCommand(cmd);
+      await handleToolCommand(cmd, history);
       return true;
     } else if (lowerCmd.startsWith('/model')) {
       const parts = cmd.split(' ');
@@ -186,16 +201,20 @@ export async function startChatSession(options: {
         return;
       }
       
-      // Add to history
+      // Add user message to history
       history.push({ role: 'user', content: input });
       
       // Process the message
       process.stdout.write('Assistant: ');
       
       try {
-        await processPrompt(input, true);
-        // We don't add the assistant's response to history here because
-        // we don't have access to the full response text from the streaming output
+        // Pass the history to processPrompt and get the assistant's response
+        const assistantResponse = await processPrompt(input, true, history);
+        
+        // Add the assistant's response to history if it exists
+        if (assistantResponse) {
+          history.push({ role: 'assistant', content: assistantResponse });
+        }
       } catch (error) {
         console.error('\nError processing message:', error instanceof Error ? error.message : 'Unknown error');
       }
@@ -292,7 +311,10 @@ Remember: Detect tool intent immediately and output JSON without discussion. For
  * Handle the /tool command
  * Format: /tool ToolName param1="value1" param2="value2"
  */
-async function handleToolCommand(command: string): Promise<void> {
+async function handleToolCommand(
+  command: string, 
+  history?: Array<{ role: 'system' | 'user' | 'assistant', content: string }>
+): Promise<void> {
   try {
     // Extract the command parts (skip the "/tool" part)
     const parts = command.substring(5).trim().split(/\s+/);
@@ -345,10 +367,27 @@ async function handleToolCommand(command: string): Promise<void> {
     // Execute the tool
     console.log(`Executing tool: ${toolName}`);
     const result = await executeFunction(toolName, parameters);
-    if (typeof result === 'string') {
-      console.log(result);
-    } else {
-      console.log(JSON.stringify(result, null, 2));
+    
+    // Format the result for display and history
+    const resultStr = typeof result === 'string' 
+      ? result 
+      : JSON.stringify(result, null, 2);
+    
+    console.log(resultStr);
+    
+    // Add the command and result to history if available
+    if (history) {
+      // Add the tool command as a user message
+      history.push({ 
+        role: 'user', 
+        content: command 
+      });
+      
+      // Add the result as an assistant message
+      history.push({ 
+        role: 'assistant', 
+        content: `Tool execution result:\n${resultStr}` 
+      });
     }
   } catch (error) {
     if (error instanceof ToolError) {
