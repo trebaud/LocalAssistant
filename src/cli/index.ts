@@ -8,7 +8,6 @@ interface CliOptions {
   help?: boolean;
   listTools?: boolean;
   prompt?: string;
-  mock?: boolean;
   chat?: boolean;
 }
 
@@ -29,8 +28,6 @@ export function parseArgs(args: string[]): CliOptions {
       options.help = true;
     } else if (arg === '--list-tools' || arg === '-l') {
       options.listTools = true;
-    } else if (arg === '--mock') {
-      options.mock = true;
     } else if (arg === '--chat' || arg === '-c') {
       options.chat = true;
     } else if (!arg.startsWith('-')) {
@@ -63,7 +60,6 @@ Options:
   -v, --verbose     Enable verbose output
   -l, --list-tools  List available tools
   -c, --chat        Force chat mode even if a prompt is provided
-  --mock            Use mock responses instead of calling the AI model
 
 Default Mode:
   Running without a prompt starts an interactive chat session.
@@ -82,7 +78,6 @@ Examples:
   bun run index.ts --model llama3.2 "Who is the CEO of Tesla?"
   bun run index.ts --verbose "What is located at 41.881832, -87.640406?"
   bun run index.ts --list-tools
-  bun run index.ts --mock "What is the weather in London?"
   `);
 }
 
@@ -135,19 +130,11 @@ export async function runCli(args: string[] = process.argv.slice(2)): Promise<vo
       console.log('Starting chat mode');
     }
     await startChatSession({
-      mock: options.mock,
       model: options.model
     });
     return;
   }
   
-  // Process the prompt with the appropriate mode
-  if (options.mock) {
-    console.log('Using mock mode');
-    // This will be implemented in the mock module
-    const { runMockPrompt } = await import('../mock/index.js');
-    await runMockPrompt(options.prompt);
-  } else {
-    await processPrompt(options.prompt);
-  }
+  // Process the prompt
+  await processPrompt(options.prompt);
 }

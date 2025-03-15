@@ -21,7 +21,6 @@ No cap. Your AI assistant can now interact with real tools and APIs without hall
 - 🔥 **Plug & play tools** - Weather, location, search, whatever you need
 - 🤯 **100% locally powered** - Runs on Ollama with zero cloud dependencies
 - 🔒 **Privacy first** - No data ever leaves your machine
-- 🧪 **Mock mode** - Test without hitting real APIs (your wallet thanks you)
 - 🔌 **Extensible AF** - Build your own tools in minutes
 
 ## 🏃‍♂️ Get Started in 30 Seconds

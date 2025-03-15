@@ -104,7 +104,6 @@ export async function processPrompt(prompt: string, streamOutput: boolean = fals
  * Start an interactive chat session with streaming responses
  */
 export async function startChatSession(options: { 
-  mock?: boolean; 
   model?: string;
 } = {}): Promise<void> {
   const rl = readline.createInterface({
@@ -183,17 +182,12 @@ export async function startChatSession(options: {
       // Process the message
       process.stdout.write('Assistant: ');
       
-      if (options.mock) {
-          console.log('\n[Mock Response] This is a simulated response in chat mode.');
-        history.push({ role: 'assistant', content: '[Mock Response]' });
-      } else {
-        try {
-          await processPrompt(input, true);
-          // We don't add the assistant's response to history here because
-          // we don't have access to the full response text from the streaming output
-        } catch (error) {
-          console.error('\nError processing message:', error instanceof Error ? error.message : 'Unknown error');
-        }
+      try {
+        await processPrompt(input, true);
+        // We don't add the assistant's response to history here because
+        // we don't have access to the full response text from the streaming output
+      } catch (error) {
+        console.error('\nError processing message:', error instanceof Error ? error.message : 'Unknown error');
       }
       
       askQuestion();
