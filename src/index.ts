@@ -72,7 +72,12 @@ export async function processPrompt(prompt: string, streamOutput: boolean = fals
       const parsedResponse = extractAndParseJSON(fullResponse);
       
       if (parsedResponse) {
-        await executeFunction(parsedResponse.functionName, parsedResponse.parameters);
+        const result = await executeFunction(parsedResponse.functionName, parsedResponse.parameters);
+        if (typeof result === 'string') {
+          console.log(result);
+        } else {
+          console.log(JSON.stringify(result, null, 2));
+        }
       }
       
       return;
@@ -88,7 +93,12 @@ export async function processPrompt(prompt: string, streamOutput: boolean = fals
     });
 
     const parsedResponse = parseAIResponse(response.response.trim());
-    await executeFunction(parsedResponse.functionName, parsedResponse.parameters);
+    const result = await executeFunction(parsedResponse.functionName, parsedResponse.parameters);
+    if (typeof result === 'string') {
+      console.log(result);
+    } else {
+      console.log(JSON.stringify(result, null, 2));
+    }
   } catch (error) {
     if (error instanceof ToolError) {
       console.error(`Tool Error (${error.code}):`, error.message);
@@ -334,7 +344,12 @@ async function handleToolCommand(command: string): Promise<void> {
     
     // Execute the tool
     console.log(`Executing tool: ${toolName}`);
-    await executeFunction(toolName, parameters);
+    const result = await executeFunction(toolName, parameters);
+    if (typeof result === 'string') {
+      console.log(result);
+    } else {
+      console.log(JSON.stringify(result, null, 2));
+    }
   } catch (error) {
     if (error instanceof ToolError) {
       console.error(`Tool Error (${error.code}):`, error.message);

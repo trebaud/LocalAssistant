@@ -36,11 +36,11 @@ const toolImplementations = {
 export async function executeFunction(
   functionName: string,
   parameters: FunctionParameter[]
-): Promise<void> {
+): Promise<string | object> {
   const implementation = toolImplementations[functionName as keyof typeof toolImplementations];
   if (!implementation) {
     throw new ToolError(`Unknown function: ${functionName}`, 'UNKNOWN_FUNCTION');
   }
   
-  await implementation(parameters);
+  return await implementation(parameters);
 }
