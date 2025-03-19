@@ -18,10 +18,10 @@ interface AIResponse {
  */
 function extractAndParseJSON(text: string): AIResponse | null {
   try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
+    const functionMatch = text.match(/<<__FUNCTION_CALL_8X7__>>([\s\S]*?)<<\/__FUNCTION_CALL_8X7__>>/);
+    if (!functionMatch) return null;
     
-    const jsonStr = jsonMatch[0];
+    const jsonStr = functionMatch[1];
     return parseAIResponse(jsonStr);
   } catch (error) {
     if (error instanceof SyntaxError) {
@@ -269,21 +269,10 @@ You are a helpful and friendly AI assistant. You can engage in natural conversat
 
 Important: When you detect that a user's request requires using a tool, respond with:
 1. A brief acknowledgment of their intent (e.g. "I'll check the weather for you")
-2. IMMEDIATELY followed by the appropriate JSON format
+2. IMMEDIATELY followed by the JSON format wrapped in special delimiters
 
-Example response for "what's the weather in London?":
-"I'll check London's weather for you"
-{
-  "functionName": "getWeather",
-  "parameters": [
-    {
-      "parameterName": "location",
-      "parameterValue": "London"
-    }
-  ]
-}
-
-For tool requests, use this JSON format:
+For tool requests, use this format:
+<<__FUNCTION_CALL_8X7__>>
 {
   "functionName": "string - the name of the tool function to execute",
   "parameters": [
@@ -293,6 +282,7 @@ For tool requests, use this JSON format:
     }
   ]
 }
+<</__FUNCTION_CALL_8X7__>>
 
 For regular conversation:
 - Be friendly, helpful, and direct
@@ -304,8 +294,9 @@ For regular conversation:
 Available Tools:
 ${toolsString}
 
-Remember: Detect tool intent immediately and output JSON without discussion. For regular chat, be natural and helpful.
+Remember: Detect tool intent immediately and output JSON wrapped in the function call delimiters without discussion. For regular chat, be natural and helpful.
 `;
+
 
 /**
  * Handle the /tool command
