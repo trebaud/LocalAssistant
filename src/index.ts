@@ -4,6 +4,11 @@ import { toolsString, executeFunction, TOOLS } from './tools';
 import { ToolError } from './types';
 import readline from 'readline';
 
+const FUNCTION_CALL_DELIMITERS = {
+  START: '<<__FUNCTION_CALL_8X7__>>',
+  END: '<</__FUNCTION_CALL_8X7__>>'
+}
+
 interface AIResponse {
   functionName: string;
   parameters: Array<{
@@ -18,7 +23,7 @@ interface AIResponse {
  */
 function extractAndParseJSON(text: string): AIResponse | null {
   try {
-    const functionMatch = text.match(/<<__FUNCTION_CALL_8X7__>>([\s\S]*?)<<\/__FUNCTION_CALL_8X7__>>/);
+    const functionMatch = text.match(new RegExp(`${FUNCTION_CALL_DELIMITERS.START}([\\s\\S]*?)${FUNCTION_CALL_DELIMITERS.END}`));
     if (!functionMatch) return null;
     
     const jsonStr = functionMatch[1];
@@ -272,7 +277,7 @@ Important: When you detect that a user's request requires using a tool, respond 
 2. IMMEDIATELY followed by the JSON format wrapped in special delimiters
 
 For tool requests, use this format:
-<<__FUNCTION_CALL_8X7__>>
+${FUNCTION_CALL_DELIMITERS.START}
 {
   "functionName": "string - the name of the tool function to execute",
   "parameters": [
@@ -282,7 +287,7 @@ For tool requests, use this format:
     }
   ]
 }
-<</__FUNCTION_CALL_8X7__>>
+${FUNCTION_CALL_DELIMITERS.END}
 
 For regular conversation:
 - Be friendly, helpful, and direct
