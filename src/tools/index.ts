@@ -1,46 +1,56 @@
-import { WeatherFromLocation } from './weatherFromLocation/definition';
-import { WeatherFromLatLon } from './weatherFromLatLon/definition';
-import { LatLonToCity } from './latLonToCity/definition';
-import { WebSearch } from './webSearch/definition';
-
-import { WeatherFromLocation as WeatherFromLocationImpl } from './weatherFromLocation/implementation';
-import { WeatherFromLatLon as WeatherFromLatLonImpl } from './weatherFromLatLon/implementation';
-import { LatLonToCity as LatLonToCityImpl } from './latLonToCity/implementation';
-import { WebSearch as WebSearchImpl } from './webSearch/implementation';
-
 import type { Tool, FunctionParameter } from '../types';
 import { ToolError } from '../types';
+import { ReadFile, ReadFileImpl } from './readFile';
+import { WeatherFromLocation, WeatherFromLocationImpl } from './weatherFromLocation';
+import { WeatherFromLatLon, WeatherFromLatLonImpl } from './weatherFromLatLon';
+import { LatLonToCity, LatLonToCityImpl } from './latLonToCity';
+import { WebSearch, WebSearchImpl } from './webSearch';
+
+// Tool registry to store definitions and implementations
+const toolRegistry: Record<string, {
+  definition: Tool,
+  implementation: (params: FunctionParameter[]) => Promise<string | object>
+}> = {};
+
+/**
+ * Register a tool with its definition and implementation
+ */
+function registerTool(
+  definition: Tool,
+  implementation: (params: FunctionParameter[]) => Promise<string | object>
+) {
+  toolRegistry[definition.name] = {
+    definition,
+    implementation
+  };
+}
+
+// Register all tools
+registerTool(WeatherFromLocation, WeatherFromLocationImpl);
+registerTool(WeatherFromLatLon, WeatherFromLatLonImpl);
+registerTool(LatLonToCity, LatLonToCityImpl);
+registerTool(WebSearch, WebSearchImpl);
+registerTool(ReadFile, ReadFileImpl);
 
 // Export all tool definitions
-export const TOOLS: Record<string, Tool> = {
-  WeatherFromLocation,
-  WeatherFromLatLon,
-  LatLonToCity,
-  WebSearch,
-};
+export const TOOLS: Record<string, Tool> = Object.fromEntries(
+  Object.entries(toolRegistry).map(([name, { definition }]) => [name, definition])
+);
 
 // Export the tools string for system prompts
 export const toolsString = JSON.stringify({ tools: Object.values(TOOLS) }, null, 2);
-
-// Tool implementations mapping
-const toolImplementations = {
-  WeatherFromLocation: WeatherFromLocationImpl,
-  WeatherFromLatLon: WeatherFromLatLonImpl,
-  LatLonToCity: LatLonToCityImpl,
-  WebSearch: WebSearchImpl,
-};
 
 /**
  * Execute a tool by name with given parameters
  */
 export async function executeFunction(
-  functionName: string,
+  functionName: string, 
   parameters: FunctionParameter[]
 ): Promise<string | object> {
-  const implementation = toolImplementations[functionName as keyof typeof toolImplementations];
-  if (!implementation) {
+  const tool = toolRegistry[functionName];
+  if (!tool) {
     throw new ToolError(`Unknown function: ${functionName}`, 'UNKNOWN_FUNCTION');
   }
   
-  return await implementation(parameters);
+  return await tool.implementation(parameters);
 }

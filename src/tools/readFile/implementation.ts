@@ -3,7 +3,7 @@ import type { FunctionParameter } from '../../types';
 import { ToolError } from '../../types';
 import { getParameterValue } from '../utils';
 
-export async function ReadFile(parameters: FunctionParameter[]): Promise<string> {
+export default async function ReadFile(parameters: FunctionParameter[]): Promise<string> {
   const filePath = getParameterValue('path', parameters);
   
   try {
