@@ -1,12 +1,10 @@
 # 🧠 LocalAssistant
 
-> **Supercharge your apps with local AI brain power** ✨
+> **Use local LLMs with your own tools** ✨
 
 ![powered by](https://img.shields.io/badge/powered%20by-Ollama-orange)
 
 ## 👀 What's This?
-
-This isn't your average code library. It's your 100% local AI sidekick that actually *does stuff* in the real world, powered by Ollama.
 
 ```
 YOU: "What's the weather in Tokyo?"
@@ -21,18 +19,15 @@ No cap. Your AI assistant can now interact with real tools and APIs without hall
 - 🔥 **Plug & play tools** - Weather, location, search, whatever you need
 - 🤯 **100% locally powered** - Runs on Ollama with zero cloud dependencies
 - 🔒 **Privacy first** - No data ever leaves your machine
-- 🔌 **Extensible AF** - Build your own tools in minutes
+- 🔌 **Extensible** - Build and add your own tools
 
 ## 🏃‍♂️ Get Started in 30 Seconds
 
 ```bash
-# Clone this bad boy
 git clone git@github.com:trebaud/LocalAssistant.git
 
-# Install the goods
 bun install
 
-# Let's gooooo (uses your local Ollama models)
 bun start "What's the weather in Montreal?"
 ```
 
@@ -44,8 +39,6 @@ Want to add your own tools? It's stupid simple:
 2. Implement the logic
 3. Watch your AI assistant gain new superpowers
 
-No complex setup. No PhD required.
-
 ## 🤝 Vibe Check
 
 This project is for builders who:
@@ -54,15 +47,6 @@ This project is for builders who:
 - Believe in privacy-first technology with local models
 - Love the power of Ollama but want to extend it with real tools
 - Want to experiment without a massive learning curve
-
-## 🔮 The Future is Now
-
-We're just scratching the surface of what's possible when you give AI the ability to use tools. Imagine what you could build:
-
-- Personal assistants that book real appointments
-- Code generators that commit directly to your repo
-- Research assistants that cite real, verified sources
-- Smart home controllers that actually work with your devices
 
 Built with ❤️, Ollama, and coffee.
 
